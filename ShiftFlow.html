@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShiftFlow v3 - Gestión de Turnos, Equipos y Vacaciones</title>
+    <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f7fa;
+            --bg-tertiary: #f8fafc;
+            --text-primary: #1a202c;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --sidebar-bg: #1a2332;
+            --sidebar-text: #cbd5e1;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+        }
+
+        html[data-theme="dark"] {
+            --bg-primary: #1a202c;
+            --bg-secondary: #0f172a;
+            --bg-tertiary: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --sidebar-bg: #0f172a;
+            --sidebar-text: #cbd5e1;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; 
+            background: var(--bg-secondary); 
+            color: var(--text-primary); 
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .app-container { display: flex; height: 100vh; }
+        
+        .sidebar { 
+            width: 240px; 
+            background: var(--sidebar-bg); 
+            color: white; 
+            padding: 24px 16px; 
+            border-right: 1px solid rgba(255,255,255,0.1); 
+            display: flex; 
+            flex-direction: column; 
+            gap: 32px; 
+            overflow-y: auto; 
+            transition: transform 0.3s ease, width 0.3s ease;
+            position: relative;
+            z-index: 100;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-240px);
+            position: fixed;
+            height: 100vh;
+            left: 0;
+        }
+
+        .logo { font-size: 18px; font-weight: 700; color: #00d4aa; }
+        
+        .nav-section { display: flex; flex-direction: column; gap: 8px; }
+        .nav-label { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #8892a6; padding: 0 12px; }
+        
+        .nav-item { 
+            padding: 10px 12px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 14px; 
+            transition: all 0.2s ease; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            color: var(--sidebar-text);
+            user-select: none;
+        }
+
+        .nav-item:hover { 
+            background: rgba(255,255,255,0.15);
+            transform: translateX(4px);
+        }
+
+        .nav-item:active { transform: translateX(2px); }
+
+        .nav-item.active { 
+            background: var(--accent); 
+            color: white; 
+            box-shadow: 0 4px 12px rgba(0,102,204,0.3);
+        }
+
+        .toggle-sidebar-open {
+            background: none;
+            border: none;
+            color: #8892a6;
+            padding: 4px 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 16px;
+            border-radius: 4px;
+            line-height: 1;
+        }
+
+        .toggle-sidebar-open:hover {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .toggle-sidebar-open:active { transform: scale(0.95); }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .toggle-sidebar-collapsed {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 101;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .toggle-sidebar-collapsed:hover {
+            background: var(--bg-tertiary);
+            transform: scale(1.1);
+        }
+
+        .toggle-sidebar-collapsed:active { transform: scale(0.95); }
+
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        
+        .header { 
+            background: var(--bg-primary); 
+            border-bottom: 1px solid var(--border); 
+            padding: 16px 32px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .header-title { font-size: 20px; font-weight: 600; }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover { 
+            background: var(--accent);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .content-area { flex: 1; overflow-y: auto; padding: 32px; }
+        
+        .card { 
+            background: var(--bg-primary); 
+            border: 1px solid var(--border); 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .card-title { 
+            font-size: 15px; 
+            font-weight: 600; 
+            margin-bottom: 16px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+
+        .btn { 
+            padding: 10px 16px; 
+            border: none; 
+            border-radius: 6px; 
+            font-size: 13px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 8px;
+            user-select: none;
+        }
+
+        .btn:active { transform: scale(0.98); }
+
+        .btn-primary { 
+            background: var(--accent); 
+            color: white; 
+        }
+
+        .btn-primary:hover { 
+            background: var(--accent-hover);
+            box-shadow: 0 4px 12px rgba(0,102,204,0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary { 
+            background: var(--bg-tertiary); 
+            color: var(--text-primary); 
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover { 
+            background: var(--border);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger { 
+            background: #dc2626; 
+            color: white; 
+            padding: 6px 12px; 
+            font-size: 12px; 
+        }
+
+        .btn-danger:hover { 
+            background: #991b1b;
+            box-shadow: 0 4px 12px rgba(220,38,38,0.3);
+        }
+
+        .form-label { 
+            display: block; 
+            font-size: 13px; 
+            font-weight: 600; 
+            margin-bottom: 8px; 
+            color: var(--text-primary);
+        }
+
+        .form-input, .form-select { 
+            width: 100%; 
+            padding: 10px 12px; 
+            border: 1px solid var(--border); 
+            border-radius: 6px; 
+            font-size: 13px; 
+            font-family: inherit;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .form-input:hover, .form-select:hover {
+            border-color: var(--accent);
+        }
+
+        .form-input:focus, .form-select:focus { 
+            outline: none; 
+            border-color: var(--accent); 
+            box-shadow: 0 0 0 3px rgba(0,102,204,0.15);
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        .modal-overlay { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            right: 0; 
+            bottom: 0; 
+            background: rgba(0,0,0,0.5); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal { 
+            background: var(--bg-primary); 
+            border-radius: 12px; 
+            box-shadow: 0 20px 25px rgba(0,0,0,0.2); 
+            width: 90%; 
+            max-width: 600px; 
+            max-height: 90vh; 
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header { 
+            padding: 24px; 
+            border-bottom: 1px solid var(--border); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+
+        .modal-title { font-size: 16px; font-weight: 600; }
+
+        .modal-close { 
+            background: none; 
+            border: none; 
+            font-size: 24px; 
+            cursor: pointer; 
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            padding: 4px 8px;
+        }
+
+        .modal-close:hover { 
+            color: var(--text-primary);
+            transform: rotate(90deg);
+        }
+
+        .modal-body { padding: 24px; }
+        .modal-footer { 
+            padding: 16px 24px; 
+            border-top: 1px solid var(--border); 
+            display: flex; 
+            gap: 12px; 
+            justify-content: flex-end; 
+        }
+
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 13px; 
+        }
+
+        thead { 
+            background: var(--bg-tertiary); 
+            border-bottom: 1px solid var(--border); 
+        }
+
+        th { 
+            padding: 12px; 
+            text-align: left; 
+            font-weight: 600; 
+            color: var(--text-secondary); 
+        }
+
+        td { 
+            padding: 12px; 
+            border-bottom: 1px solid var(--border); 
+        }
+
+        tbody tr { transition: all 0.2s; }
+        tbody tr:hover { 
+            background: var(--bg-tertiary);
+        }
+
+        .tag { 
+            display: inline-block; 
+            padding: 4px 10px; 
+            background: #dbeafe; 
+            color: #0c2d6b; 
+            border-radius: 4px; 
+            font-size: 11px; 
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .tag.warning { background: #fef3c7; color: #92400e; }
+        .tag.danger { background: #fee2e2; color: #7f1d1d; }
+        .tag.success { background: #dcfce7; color: #15803d; }
+
+        .alert { 
+            padding: 12px 16px; 
+            border-radius: 6px; 
+            margin-bottom: 16px; 
+            font-size: 13px; 
+            display: flex; 
+            gap: 12px;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .alert-warning { 
+            background: #fffbeb; 
+            border: 1px solid #fcd34d; 
+            color: #92400e; 
+        }
+
+        .alert-success { 
+            background: #f0fdf4; 
+            border: 1px solid #86efac; 
+            color: #15803d; 
+        }
+
+        .vacation-row { 
+            padding: 16px; 
+            background: var(--bg-tertiary); 
+            border-radius: 6px; 
+            margin-bottom: 12px; 
+            border-left: 3px solid var(--accent);
+            transition: all 0.2s;
+        }
+
+        .vacation-row:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .vacation-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: start; 
+            margin-bottom: 12px; 
+        }
+
+        .vacation-dates { 
+            font-size: 12px; 
+            color: var(--text-secondary); 
+        }
+
+        .conflicts-list { 
+            padding: 12px; 
+            background: #fef2f2; 
+            border: 1px solid #fecaca; 
+            border-radius: 6px; 
+            margin-bottom: 12px; 
+        }
+
+        .conflict-item { 
+            padding: 8px 0; 
+            font-size: 12px; 
+            color: #7f1d1d; 
+            border-bottom: 1px solid #fecaca; 
+        }
+
+        .conflict-item:last-child { border-bottom: none; }
+
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ============ TOOLTIP ============
+        function Tooltip({ text, children }) {
+            const [pos, setPos] = useState(null);
+
+            function handleMouseEnter(e) {
+                const r = e.currentTarget.getBoundingClientRect();
+                const vw = window.innerWidth;
+                const tipW = 240;
+                const anchorX = r.left + r.width / 2;
+                const rawLeft = anchorX - tipW / 2;
+                const left = Math.max(8, Math.min(rawLeft, vw - tipW - 8));
+                const above = r.top > 100;
+                const top = above ? r.top - 10 : r.bottom + 10;
+                setPos({ left, top, above });
+            }
+
+            function handleMouseLeave() {
+                setPos(null);
+            }
+
+            return (
+                <span
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'help' }}
+                >
+                    {children}
+                    <span style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: '15px', height: '15px', borderRadius: '50%',
+                        background: '#3b82f6', color: 'white',
+                        fontSize: '10px', fontWeight: '700', flexShrink: 0,
+                        lineHeight: 1, fontStyle: 'normal'
+                    }}>?</span>
+                    {pos && (
+                        <div style={{
+                            position: 'fixed',
+                            left: pos.left,
+                            top: pos.top,
+                            transform: pos.above ? 'translateY(-100%)' : 'none',
+                            background: '#1e293b',
+                            color: '#f1f5f9',
+                            padding: '7px 11px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            lineHeight: '1.5',
+                            width: '240px',
+                            zIndex: 999999,
+                            pointerEvents: 'none',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                            whiteSpace: 'normal',
+                        }}>
+                            {text}
+                        </div>
+                    )}
+                </span>
+            );
+        }
+
+        // ============ APP PRINCIPAL ============
+        function ShiftFlowApp() {
+            const [activeNav, setActiveNav] = useState('dashboard');
+            const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+            const [darkMode, setDarkMode] = useState(() => {
+                const saved = localStorage.getItem('shiftflow-theme');
+                return saved ? JSON.parse(saved) : false;
+            });
+
+            useEffect(() => {
+                localStorage.setItem('shiftflow-theme', JSON.stringify(darkMode));
+                if (darkMode) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                } else {
+                    document.documentElement.removeAttribute('data-theme');
+                }
+            }, [darkMode]);
+
+            const loadOrDefault = (key, defaultValue) => {
+                try {
+                    const saved = localStorage.getItem(key);
+                    return saved ? JSON.parse(saved) : defaultValue;
+                } catch { return defaultValue; }
+            };
+
+            const today = new Date().toISOString().split('T')[0];
+
+            const [teams, setTeams] = useState(() => loadOrDefault('shiftflow-teams', [
+                { id: 'D', name: 'Equipo D', currentShiftId: 2, rotationPattern: [2, 1, 3], lastRotationDate: today },
+                { id: 'H', name: 'Equipo H', currentShiftId: 1, rotationPattern: [1, 2, 3], lastRotationDate: today },
+                { id: 'L', name: 'Equipo L', currentShiftId: 3, rotationPattern: [3, 1, 2], lastRotationDate: today }
+            ]));
+
+            const [shifts, setShifts] = useState(() => loadOrDefault('shiftflow-shifts', [
+                { id: 1, name: 'Matutino', operative: true },
+                { id: 2, name: 'Vespertino', operative: true },
+                { id: 3, name: 'Nocturno', operative: true }
+            ]));
+
+            const [requestTypes, setRequestTypes] = useState(() => loadOrDefault('shiftflow-request-types', [
+                { id: 'vacation', label: 'Vacación', icon: '🏖️' },
+                { id: 'admin', label: 'Administrativo', icon: '📋' },
+                { id: 'sick', label: 'Licencia Médica', icon: '🤒' }
+            ]));
+
+            const [staff, setStaff] = useState(() => loadOrDefault('shiftflow-staff', [
+                { id: 1, rut: '12.345.678-9', name: 'Juan Pablo Rodríguez', cargo: 'Operador', teams: ['D'] },
+                { id: 2, rut: '12.456.789-0', name: 'María García López', cargo: 'Supervisor', teams: ['D'] },
+                { id: 3, rut: '12.567.890-1', name: 'Carlos Rodríguez Pérez', cargo: 'Operador', teams: ['D', 'H'] },
+                { id: 4, rut: '12.678.901-2', name: 'Ana Martínez Silva', cargo: 'Operador', teams: ['D'] },
+                { id: 5, rut: '12.789.012-3', name: 'Pedro Lago Torres', cargo: 'Operador', teams: ['H'] },
+                { id: 6, rut: '12.890.123-4', name: 'Elena Vega Molina', cargo: 'Operador', teams: ['H'] },
+                { id: 7, rut: '12.901.234-5', name: 'Marcos Delgado Cruz', cargo: 'Operador', teams: ['H'] },
+                { id: 8, rut: '13.012.345-6', name: 'Liliana Berríos Fuentes', cargo: 'Operador', teams: ['L'] },
+                { id: 9, rut: '13.123.456-7', name: 'Verónica Jiménez Ramos', cargo: 'Operador', teams: ['L'] },
+                { id: 10, rut: '13.234.567-8', name: 'Raúl Quintanilla López', cargo: 'Operador', teams: ['L'] }
+            ]));
+
+            const [vacations, setVacations] = useState(() => loadOrDefault('shiftflow-vacations', [
+                { id: 1, staffId: 1, startDate: '2026-05-15', endDate: '2026-05-22', type: 'vacation', replacement: 2, reason: 'Vacaciones' }
+            ]));
+
+            useEffect(() => { localStorage.setItem('shiftflow-teams', JSON.stringify(teams)); }, [teams]);
+            useEffect(() => { localStorage.setItem('shiftflow-shifts', JSON.stringify(shifts)); }, [shifts]);
+            useEffect(() => { localStorage.setItem('shiftflow-request-types', JSON.stringify(requestTypes)); }, [requestTypes]);
+            useEffect(() => { localStorage.setItem('shiftflow-staff', JSON.stringify(staff)); }, [staff]);
+            useEffect(() => { localStorage.setItem('shiftflow-vacations', JSON.stringify(vacations)); }, [vacations]);
+
+            const [showVacationModal, setShowVacationModal] = useState(false);
+            const [editingVacation, setEditingVacation] = useState(null);
+            const [showShiftModal, setShowShiftModal] = useState(false);
+            const [editingShift, setEditingShift] = useState(null);
+            const [showTeamModal, setShowTeamModal] = useState(false);
+            const [editingTeam, setEditingTeam] = useState(null);
+            const [showRequestTypeModal, setShowRequestTypeModal] = useState(false);
+
+            const handleAddVacation = (data) => {
+                setVacations([...vacations, { ...data, id: Date.now() }]);
+                setShowVacationModal(false);
+            };
+
+            const handleDeleteVacation = (id) => {
+                setVacations(vacations.filter(v => v.id !== id));
+            };
+
+            const handleAddShift = (data) => {
+                if (editingShift) {
+                    setShifts(shifts.map(s => s.id === editingShift.id ? { ...s, ...data } : s));
+                } else {
+                    setShifts([...shifts, { ...data, id: Math.max(...shifts.map(s => s.id), 0) + 1 }]);
+                }
+                setEditingShift(null);
+                setShowShiftModal(false);
+            };
+
+            const handleDeleteShift = (id) => {
+                setShifts(shifts.filter(s => s.id !== id));
+            };
+
+            const handleAddTeam = (data) => {
+                if (editingTeam) {
+                    setTeams(teams.map(t => t.id === editingTeam.id ? { ...t, ...data } : t));
+                } else {
+                    setTeams([...teams, { ...data, id: `TEAM-${Date.now()}` }]);
+                }
+                setEditingTeam(null);
+                setShowTeamModal(false);
+            };
+
+            const handleDeleteTeam = (id) => {
+                setTeams(teams.filter(t => t.id !== id));
+            };
+
+            const handleAddRequestType = (data) => {
+                setRequestTypes([...requestTypes, { ...data, id: data.label.toLowerCase().replace(/\s/g, '-') }]);
+                setShowRequestTypeModal(false);
+            };
+
+            const handleExport = () => {
+                const data = {
+                    version: 1,
+                    exportedAt: new Date().toISOString(),
+                    teams, shifts, staff, vacations, requestTypes
+                };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `shiftflow-backup-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const handleImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const data = JSON.parse(ev.target.result);
+                        if (data.teams) setTeams(data.teams);
+                        if (data.shifts) setShifts(data.shifts);
+                        if (data.staff) setStaff(data.staff);
+                        if (data.vacations) setVacations(data.vacations);
+                        if (data.requestTypes) setRequestTypes(data.requestTypes);
+                    } catch {
+                        alert('El archivo no es un backup válido de ShiftFlow.');
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = '';
+            };
+
+            const getConflicts = (staffId, startDate, endDate) => {
+                const person = staff.find(s => s.id === staffId);
+                const conflicts = vacations.filter(v => {
+                    if (v.id === editingVacation?.id) return false;
+                    const personTeams = person.teams;
+                    const conflictPerson = staff.find(s => s.id === v.staffId);
+                    const conflictTeams = conflictPerson.teams;
+                    const sameTeam = personTeams.some(t => conflictTeams.includes(t));
+                    const dateOverlap = !(new Date(endDate) < new Date(v.startDate) || new Date(startDate) > new Date(v.endDate));
+                    return sameTeam && dateOverlap;
+                });
+                return conflicts.map(v => staff.find(s => s.id === v.staffId)?.name);
+            };
+
+            return (
+                <div className="app-container">
+                    {sidebarCollapsed && (
+                        <button
+                            className="toggle-sidebar-collapsed"
+                            onClick={() => setSidebarCollapsed(false)}
+                            aria-label="Abrir navegación"
+                            title="Abrir barra lateral"
+                        >
+                            ☰
+                        </button>
+                    )}
+
+                    <nav
+                        className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}
+                        aria-label="Navegación principal"
+                        role="navigation"
+                    >
+                        <div className="sidebar-header">
+                            <div className="logo" aria-label="ShiftFlow - Sistema de Gestión de Turnos">⚡ ShiftFlow</div>
+                            <button
+                                className="toggle-sidebar-open"
+                                onClick={() => setSidebarCollapsed(true)}
+                                aria-label="Cerrar navegación"
+                                title="Cerrar barra lateral"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="nav-section">
+                            <div className="nav-label" id="nav-principal">Principal</div>
+                            <div 
+                                role="button"
+                                tabIndex="0"
+                                className={`nav-item ${activeNav === 'dashboard' ? 'active' : ''}`} 
+                                onClick={() => setActiveNav('dashboard')}
+                                onKeyDown={(e) => e.key === 'Enter' && setActiveNav('dashboard')}
+                                aria-current={activeNav === 'dashboard' ? 'page' : undefined}
+                                aria-labelledby="nav-principal"
+                            >
+                                📊 Dashboard
+                            </div>
+                        </div>
+                        <div className="nav-section">
+                            <div className="nav-label" id="nav-config">Configuración</div>
+                            <div 
+                                role="button"
+                                tabIndex="0"
+                                className={`nav-item ${activeNav === 'shifts' ? 'active' : ''}`} 
+                                onClick={() => setActiveNav('shifts')}
+                                onKeyDown={(e) => e.key === 'Enter' && setActiveNav('shifts')}
+                                aria-current={activeNav === 'shifts' ? 'page' : undefined}
+                                aria-labelledby="nav-config"
+                            >
+                                ⏰ Turnos
+                            </div>
+                            <div 
+                                role="button"
+                                tabIndex="0"
+                                className={`nav-item ${activeNav === 'teams' ? 'active' : ''}`} 
+                                onClick={() => setActiveNav('teams')}
+                                onKeyDown={(e) => e.key === 'Enter' && setActiveNav('teams')}
+                                aria-current={activeNav === 'teams' ? 'page' : undefined}
+                                aria-labelledby="nav-config"
+                            >
+                                👥 Equipos
+                            </div>
+                        </div>
+                        <div className="nav-section">
+                            <div className="nav-label" id="nav-gestion">Gestión</div>
+                            <div 
+                                role="button"
+                                tabIndex="0"
+                                className={`nav-item ${activeNav === 'vacations' ? 'active' : ''}`} 
+                                onClick={() => setActiveNav('vacations')}
+                                onKeyDown={(e) => e.key === 'Enter' && setActiveNav('vacations')}
+                                aria-current={activeNav === 'vacations' ? 'page' : undefined}
+                                aria-labelledby="nav-gestion"
+                            >
+                                📅 Solicitudes
+                            </div>
+                            <div 
+                                role="button"
+                                tabIndex="0"
+                                className={`nav-item ${activeNav === 'staff' ? 'active' : ''}`} 
+                                onClick={() => setActiveNav('staff')}
+                                onKeyDown={(e) => e.key === 'Enter' && setActiveNav('staff')}
+                                aria-current={activeNav === 'staff' ? 'page' : undefined}
+                                aria-labelledby="nav-gestion"
+                            >
+                                📋 Nómina
+                            </div>
+                        </div>
+                    </nav>
+
+                    <div className="main-content">
+                        <header className="header" role="banner">
+                            <div>
+                                <h1 className="header-title">
+                                    {activeNav === 'dashboard' && 'Control de Torre'}
+                                    {activeNav === 'shifts' && 'Gestión de Turnos'}
+                                    {activeNav === 'teams' && 'Administración de Equipos'}
+                                    {activeNav === 'vacations' && 'Planificador de Solicitudes'}
+                                    {activeNav === 'staff' && 'Nómina'}
+                                </h1>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <button
+                                    className="theme-toggle"
+                                    onClick={handleExport}
+                                    aria-label="Exportar datos como JSON"
+                                    title="Exportar backup"
+                                    style={{ fontSize: '14px' }}
+                                >
+                                    ⬇ Exportar
+                                </button>
+                                <label
+                                    className="theme-toggle"
+                                    aria-label="Importar datos desde JSON"
+                                    title="Importar backup"
+                                    style={{ fontSize: '14px', cursor: 'pointer' }}
+                                >
+                                    ⬆ Importar
+                                    <input
+                                        type="file"
+                                        accept=".json"
+                                        onChange={handleImport}
+                                        style={{ display: 'none' }}
+                                    />
+                                </label>
+                                <button
+                                    className="theme-toggle"
+                                    onClick={() => setDarkMode(!darkMode)}
+                                    aria-label={darkMode ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+                                    title={darkMode ? 'Tema oscuro activado' : 'Tema claro activado'}
+                                >
+                                    {darkMode ? '☀️' : '🌙'}
+                                </button>
+                            </div>
+                        </header>
+
+                        <main className="content-area" role="main">
+                            {activeNav === 'dashboard' && <DashboardView teams={teams} shifts={shifts} staff={staff} />}
+                            {activeNav === 'shifts' && (
+                                <ShiftsView
+                                    shifts={shifts}
+                                    onAdd={() => { setEditingShift(null); setShowShiftModal(true); }}
+                                    onEdit={(s) => { setEditingShift(s); setShowShiftModal(true); }}
+                                    onDelete={handleDeleteShift}
+                                />
+                            )}
+                            {activeNav === 'teams' && (
+                                <TeamsView
+                                    teams={teams}
+                                    shifts={shifts}
+                                    onAdd={() => { setEditingTeam(null); setShowTeamModal(true); }}
+                                    onEdit={(t) => { setEditingTeam(t); setShowTeamModal(true); }}
+                                    onDelete={handleDeleteTeam}
+                                />
+                            )}
+                            {activeNav === 'vacations' && (
+                                <VacationsView
+                                    vacations={vacations}
+                                    staff={staff}
+                                    teams={teams}
+                                    requestTypes={requestTypes}
+                                    onAdd={() => { setEditingVacation(null); setShowVacationModal(true); }}
+                                    onDelete={handleDeleteVacation}
+                                    onAddRequestType={() => setShowRequestTypeModal(true)}
+                                    getConflicts={getConflicts}
+                                />
+                            )}
+                            {activeNav === 'staff' && <StaffView staff={staff} teams={teams} />}
+                        </main>
+                    </div>
+
+                    {showVacationModal && (
+                        <VacationModal
+                            vacation={editingVacation}
+                            staff={staff}
+                            requestTypes={requestTypes}
+                            onClose={() => { setShowVacationModal(false); setEditingVacation(null); }}
+                            onSubmit={handleAddVacation}
+                            getConflicts={getConflicts}
+                        />
+                    )}
+
+                    {showShiftModal && (
+                        <ShiftModal
+                            shift={editingShift}
+                            onClose={() => { setShowShiftModal(false); setEditingShift(null); }}
+                            onSubmit={handleAddShift}
+                        />
+                    )}
+
+                    {showTeamModal && (
+                        <TeamModal
+                            team={editingTeam}
+                            shifts={shifts}
+                            onClose={() => { setShowTeamModal(false); setEditingTeam(null); }}
+                            onSubmit={handleAddTeam}
+                        />
+                    )}
+
+                    {showRequestTypeModal && (
+                        <RequestTypeModal
+                            onClose={() => setShowRequestTypeModal(false)}
+                            onSubmit={handleAddRequestType}
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        // ============ SHIFTS VIEW ============
+        function ShiftsView({ shifts, onAdd, onEdit, onDelete }) {
+            return (
+                <div>
+                    <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="card-title" style={{ margin: 0 }}>⏰ Turnos</div>
+                        <button className="btn btn-primary" onClick={onAdd}>+ Nuevo Turno</button>
+                    </div>
+                    {shifts.map(s => (
+                        <div key={s.id} className="card">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                    <strong>{s.name}</strong>
+                                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                                        {s.operative ? '✅ Operativo' : '⏸️ Inactivo'}
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button className="btn btn-secondary" onClick={() => onEdit(s)}>✏️</button>
+                                    <button className="btn btn-danger" onClick={() => onDelete(s.id)}>🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        // ============ TEAMS VIEW ============
+        function TeamsView({ teams, shifts, onAdd, onEdit, onDelete }) {
+            return (
+                <div>
+                    <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="card-title" style={{ margin: 0 }}>👥 Equipos</div>
+                        <button className="btn btn-primary" onClick={onAdd}>+ Nuevo Equipo</button>
+                    </div>
+                    {teams.map(t => (
+                        <div key={t.id} className="card">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                <strong>{t.name}</strong>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button className="btn btn-secondary" onClick={() => onEdit(t)}>✏️</button>
+                                    <button className="btn btn-danger" onClick={() => onDelete(t.id)}>🗑️</button>
+                                </div>
+                            </div>
+                            <div style={{ fontSize: '13px', color: '#64748b' }}>
+                                <div style={{ marginBottom: '8px' }}>
+                                    <span style={{ fontWeight: '600' }}>Turno Actual:</span> {shifts.find(s => s.id === t.currentShiftId)?.name}
+                                </div>
+                                <div>
+                                    <span style={{ fontWeight: '600' }}>Patrón:</span> {t.rotationPattern.map(id => shifts.find(s => s.id === id)?.name).join(' → ')}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        // ============ VACATIONS VIEW ============
+        function VacationsView({ vacations, staff, teams, requestTypes, onAdd, onDelete, onAddRequestType, getConflicts }) {
+            return (
+                <div>
+                    <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                        <div className="card-title" style={{ margin: 0 }}>📅 Solicitudes Registradas</div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className="btn btn-secondary" onClick={onAddRequestType}>+ Tipo Solicitud</button>
+                            <button className="btn btn-primary" onClick={onAdd}>+ Nueva Solicitud</button>
+                        </div>
+                    </div>
+
+                    {vacations.length === 0 ? (
+                        <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
+                            <div style={{ fontSize: '48px', marginBottom: '12px' }}>📭</div>
+                            <div style={{ fontSize: '14px', color: '#64748b' }}>No hay solicitudes registradas</div>
+                        </div>
+                    ) : (
+                        <div>
+                            {vacations.map(vac => {
+                                const person = staff.find(s => s.id === vac.staffId);
+                                const replacement = staff.find(s => s.id === vac.replacement);
+                                const conflicts = getConflicts(vac.staffId, vac.startDate, vac.endDate);
+                                const teamName = teams.find(t => t.id === person.teams[0])?.name;
+                                const requestType = requestTypes.find(rt => rt.id === vac.type);
+
+                                return (
+                                    <div key={vac.id} className="vacation-row">
+                                        <div className="vacation-header">
+                                            <div>
+                                                <strong>{person.name}</strong>
+                                                <div className="vacation-dates">
+                                                    {new Date(vac.startDate).toLocaleDateString('es-CL')} - {new Date(vac.endDate).toLocaleDateString('es-CL')}
+                                                    <span style={{ marginLeft: '12px' }}>({teamName})</span>
+                                                </div>
+                                            </div>
+                                            <span className="tag">
+                                                {requestType?.icon} {requestType?.label}
+                                            </span>
+                                        </div>
+
+                                        {conflicts.length > 0 && (
+                                            <div className="conflicts-list">
+                                                <div style={{ fontWeight: '600', marginBottom: '8px', fontSize: '12px' }}>⚠️ Conflictos:</div>
+                                                {conflicts.map((name, i) => (
+                                                    <div key={i} className="conflict-item">{name} también en esas fechas</div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <div style={{ padding: '12px', background: 'white', borderRadius: '6px', marginBottom: '12px' }}>
+                                            <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '4px' }}>Suplente</div>
+                                            <div style={{ fontSize: '13px', color: '#1a202c' }}>
+                                                {replacement ? `✅ ${replacement.name}` : '❌ Sin asignar'}
+                                            </div>
+                                        </div>
+
+                                        <button className="btn btn-danger" onClick={() => onDelete(vac.id)}>🗑️ Eliminar</button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // ============ STAFF VIEW ============
+        function StaffView({ staff, teams }) {
+            return (
+                <div>
+                    <div className="card-title">📋 Personal</div>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>RUT</th>
+                                    <th>Nombre</th>
+                                    <th>Cargo</th>
+                                    <th>Equipos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {staff.map(s => (
+                                    <tr key={s.id}>
+                                        <td><strong>{s.rut}</strong></td>
+                                        <td>{s.name}</td>
+                                        <td><span className="tag">{s.cargo}</span></td>
+                                        <td>
+                                            {s.teams.map((teamId, i) => (
+                                                <span key={i}>
+                                                    <span className="tag" style={{ background: '#d1fae5', color: '#065f46' }}>
+                                                        {teams.find(t => t.id === teamId)?.name}
+                                                    </span>
+                                                    {i < s.teams.length - 1 && ' '}
+                                                </span>
+                                            ))}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============ DASHBOARD VIEW ============
+        function DashboardView({ teams, shifts, staff }) {
+            const [selectedTeam, setSelectedTeam] = useState(null);
+
+            const getTeamStaff = (teamId) => {
+                return staff.filter(s => s.teams.includes(teamId));
+            };
+
+            return (
+                <div>
+                    {!selectedTeam ? (
+                        <>
+                            <div className="card"><div className="card-title">📊 Estado Actual - Selecciona un Equipo</div></div>
+                            {teams.map(t => (
+                                <div 
+                                    key={t.id} 
+                                    className="card"
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => setSelectedTeam(t)}
+                                    role="button"
+                                    tabIndex="0"
+                                    onKeyDown={(e) => e.key === 'Enter' && setSelectedTeam(t)}
+                                    aria-label={`Ver detalles de ${t.name}`}
+                                >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <strong>{t.name}</strong>
+                                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                                Turno: {shifts.find(s => s.id === t.currentShiftId)?.name}
+                                            </div>
+                                        </div>
+                                        <div style={{ fontSize: '24px' }}>→</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </>
+                    ) : (
+                        <>
+                            <button 
+                                className="btn btn-secondary"
+                                onClick={() => setSelectedTeam(null)}
+                                style={{ marginBottom: '20px' }}
+                            >
+                                ← Volver a Equipos
+                            </button>
+
+                            <div className="card">
+                                <div className="card-title">
+                                    <h2 style={{ margin: 0, fontSize: '18px' }}>📋 {selectedTeam.name}</h2>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                                    <div style={{ padding: '16px', background: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '8px' }}>TURNO ACTUAL</div>
+                                        <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--accent)' }}>
+                                            {shifts.find(s => s.id === selectedTeam.currentShiftId)?.name}
+                                        </div>
+                                    </div>
+
+                                    <div style={{ padding: '16px', background: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '8px' }}>PERSONAL</div>
+                                        <div style={{ fontSize: '20px', fontWeight: '700' }}>
+                                            {getTeamStaff(selectedTeam.id).length} personas
+                                        </div>
+                                    </div>
+
+                                    <div style={{ padding: '16px', background: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '8px' }}>ROTACIÓN</div>
+                                        <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
+                                            {selectedTeam.rotationPattern.map(id => shifts.find(s => s.id === id)?.name).join(' → ')}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
+                                    <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px' }}>👥 Integrantes</h3>
+                                    {getTeamStaff(selectedTeam.id).length === 0 ? (
+                                        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+                                            No hay personal asignado
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'grid', gap: '12px' }}>
+                                            {getTeamStaff(selectedTeam.id).map(person => (
+                                                <div 
+                                                    key={person.id}
+                                                    style={{ 
+                                                        padding: '12px 16px', 
+                                                        background: 'var(--bg-tertiary)', 
+                                                        borderRadius: '6px', 
+                                                        border: '1px solid var(--border)',
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.transform = 'translateX(4px)';
+                                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.transform = 'translateX(0)';
+                                                        e.currentTarget.style.boxShadow = 'none';
+                                                    }}
+                                                >
+                                                    <div style={{ fontWeight: '600', fontSize: '13px' }}>{person.name}</div>
+                                                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                                        {person.cargo} • {person.rut}
+                                                    </div>
+                                                    {person.teams.length > 1 && (
+                                                        <div style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '6px' }}>
+                                                            ⚡ En múltiples equipos: {person.teams.join(', ')}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            );
+        }
+
+        // ============ MODALS ============
+        function ShiftModal({ shift, onClose, onSubmit }) {
+            const defaultSchedule = {
+                1: { active: true, startTime: '06:00', endTime: '14:00', breakTime: '30' },
+                2: { active: true, startTime: '06:00', endTime: '14:00', breakTime: '30' },
+                3: { active: true, startTime: '06:00', endTime: '14:00', breakTime: '30' },
+                4: { active: true, startTime: '06:00', endTime: '14:00', breakTime: '30' },
+                5: { active: true, startTime: '06:00', endTime: '14:00', breakTime: '30' },
+                6: { active: true, startTime: '06:00', endTime: '14:00', breakTime: '30' },
+                0: { active: false, startTime: '06:00', endTime: '14:00', breakTime: '30' }
+            };
+
+            const [formData, setFormData] = useState(() => {
+                if (shift) {
+                    return {
+                        ...shift,
+                        schedule: shift.schedule || defaultSchedule
+                    };
+                }
+                return { 
+                    name: '', 
+                    operative: true,
+                    schedule: defaultSchedule
+                };
+            });
+
+            const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+            const handleScheduleChange = (dayNum, field, value) => {
+                setFormData({
+                    ...formData,
+                    schedule: {
+                        ...formData.schedule,
+                        [dayNum]: { ...formData.schedule[dayNum], [field]: value }
+                    }
+                });
+            };
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <div className="modal-title">{shift ? '✏️ Editar Turno' : '➕ Nuevo Turno'}</div>
+                            <button className="modal-close" onClick={onClose}>×</button>
+                        </div>
+                        <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }}>
+                            <div className="modal-body" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        <Tooltip text="Nombre que identifica este turno, por ejemplo: Matutino, Vespertino o Nocturno.">Nombre *</Tooltip>
+                                    </label>
+                                    <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="form-input" />
+                                </div>
+                                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <input type="checkbox" checked={formData.operative} onChange={(e) => setFormData({...formData, operative: e.target.checked})} style={{width: '18px', height: '18px'}} />
+                                    <label className="form-label" style={{ margin: 0 }}>
+                                        <Tooltip text="Indica si este turno está activo. Solo los turnos operativos pueden asignarse a equipos.">Operativo</Tooltip>
+                                    </label>
+                                </div>
+
+                                <div style={{ marginTop: '24px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+                                    <label className="form-label" style={{ display: 'block', marginBottom: '16px' }}>
+                                        <Tooltip text="Configure el horario de trabajo para cada día de la semana. Desmarque un día para excluirlo de este turno.">Horarios por Día</Tooltip>
+                                    </label>
+                                    {[1, 2, 3, 4, 5, 6, 0].map(dayNum => {
+                                        const sched = formData.schedule[dayNum];
+                                        return (
+                                            <div key={dayNum} style={{ padding: '12px', background: '#f8fafc', borderRadius: '6px', marginBottom: '12px', border: '1px solid #e2e8f0' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={sched.active} 
+                                                        onChange={(e) => handleScheduleChange(dayNum, 'active', e.target.checked)}
+                                                        style={{width: '18px', height: '18px'}}
+                                                    />
+                                                    <label style={{ fontWeight: '600', fontSize: '13px', margin: 0 }}>{days[dayNum]}</label>
+                                                </div>
+                                                {sched.active && (
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                                                        <div>
+                                                            <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', display: 'block', marginBottom: '4px' }}>
+                                                                <Tooltip text="Hora de inicio de la jornada laboral.">Inicio</Tooltip>
+                                                            </label>
+                                                            <input
+                                                                type="time"
+                                                                value={sched.startTime}
+                                                                onChange={(e) => handleScheduleChange(dayNum, 'startTime', e.target.value)}
+                                                                style={{ padding: '6px 8px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '4px', width: '100%' }}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', display: 'block', marginBottom: '4px' }}>
+                                                                <Tooltip text="Hora de término de la jornada laboral.">Fin</Tooltip>
+                                                            </label>
+                                                            <input
+                                                                type="time"
+                                                                value={sched.endTime}
+                                                                onChange={(e) => handleScheduleChange(dayNum, 'endTime', e.target.value)}
+                                                                style={{ padding: '6px 8px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '4px', width: '100%' }}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', display: 'block', marginBottom: '4px' }}>
+                                                                <Tooltip text="Duración en minutos del descanso para colación.">Colación (min)</Tooltip>
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                value={sched.breakTime}
+                                                                onChange={(e) => handleScheduleChange(dayNum, 'breakTime', e.target.value)}
+                                                                style={{ padding: '6px 8px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '4px', width: '100%' }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+                                <button type="submit" className="btn btn-primary">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        function TeamModal({ team, shifts, onClose, onSubmit }) {
+            const [formData, setFormData] = useState(team || { name: '', currentShiftId: 1, rotationPattern: [] });
+            const handleAddShift = (shiftId) => {
+                if (!formData.rotationPattern.includes(shiftId)) {
+                    setFormData({...formData, rotationPattern: [...formData.rotationPattern, shiftId]});
+                }
+            };
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <div className="modal-title">{team ? '✏️ Editar Equipo' : '➕ Nuevo Equipo'}</div>
+                            <button className="modal-close" onClick={onClose}>×</button>
+                        </div>
+                        <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }}>
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        <Tooltip text="Nombre que identifica al equipo, por ejemplo: Equipo A, Equipo Noche.">Nombre *</Tooltip>
+                                    </label>
+                                    <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="form-input" />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        <Tooltip text="Turno en que se encuentra trabajando el equipo en este momento.">Turno Actual *</Tooltip>
+                                    </label>
+                                    <select value={formData.currentShiftId} onChange={(e) => setFormData({...formData, currentShiftId: parseInt(e.target.value)})} className="form-select">
+                                        {shifts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        <Tooltip text="Secuencia de turnos que el equipo seguirá de forma cíclica. Se recorre de izquierda a derecha y luego vuelve al inicio.">Patrón de Rotación</Tooltip>
+                                    </label>
+                                    {formData.rotationPattern.length > 0 && (
+                                        <div style={{marginBottom: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                                            {formData.rotationPattern.map((sId, i) => (
+                                                <span key={i} style={{padding: '6px 12px', background: '#dbeafe', color: '#0c2d6b', borderRadius: '4px', fontSize: '12px', fontWeight: '600'}}>
+                                                    {shifts.find(s => s.id === sId)?.name}
+                                                    <button type="button" onClick={() => setFormData({...formData, rotationPattern: formData.rotationPattern.filter((_, idx) => idx !== i)})} style={{marginLeft: '8px', background: 'none', border: 'none', cursor: 'pointer'}}>✕</button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '8px'}}>
+                                        {shifts.map(s => (
+                                            <button key={s.id} type="button" onClick={() => handleAddShift(s.id)} disabled={formData.rotationPattern.includes(s.id)} style={{padding: '8px', background: formData.rotationPattern.includes(s.id) ? '#f1f5f9' : '#dbeafe', color: formData.rotationPattern.includes(s.id) ? '#94a3b8' : '#0c2d6b', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600'}}>
+                                                {formData.rotationPattern.includes(s.id) ? '✓ ' : '+ '}{s.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+                                <button type="submit" className="btn btn-primary">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        function VacationModal({ vacation, staff, requestTypes, onClose, onSubmit, getConflicts }) {
+            const [formData, setFormData] = useState(vacation || { staffId: '', startDate: '', endDate: '', type: 'vacation', replacement: '', reason: '' });
+            const [conflicts, setConflicts] = useState([]);
+            const [replacementSearch, setReplacementSearch] = useState('');
+            const [selectedTeamFilter, setSelectedTeamFilter] = useState('');
+            const [selectedCargoFilter, setSelectedCargoFilter] = useState('');
+
+            const handleDateChange = (field, value) => {
+                const newData = {...formData, [field]: value};
+                setFormData(newData);
+                if (newData.staffId && newData.startDate && newData.endDate) {
+                    setConflicts(getConflicts(parseInt(newData.staffId), newData.startDate, newData.endDate));
+                }
+            };
+
+            const requestType = requestTypes.find(rt => rt.id === formData.type);
+            
+            // Obtener lista de equipos y cargos únicos
+            const allTeams = [...new Set(staff.flatMap(s => s.teams))];
+            const allCargos = [...new Set(staff.map(s => s.cargo))];
+
+            // Filtrar suplentes
+            let filteredStaff = staff.filter(s => !formData.staffId || s.id !== parseInt(formData.staffId));
+            
+            // Aplicar filtro de búsqueda por nombre
+            if (replacementSearch.trim()) {
+                const searchLower = replacementSearch.toLowerCase();
+                filteredStaff = filteredStaff.filter(s => 
+                    s.name.toLowerCase().includes(searchLower) || 
+                    s.cargo.toLowerCase().includes(searchLower)
+                );
+            }
+            
+            // Aplicar filtro por equipo
+            if (selectedTeamFilter) {
+                filteredStaff = filteredStaff.filter(s => s.teams.includes(selectedTeamFilter));
+            }
+            
+            // Aplicar filtro por cargo
+            if (selectedCargoFilter) {
+                filteredStaff = filteredStaff.filter(s => s.cargo === selectedCargoFilter);
+            }
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <div className="modal-title">{requestType?.icon} Nueva {requestType?.label}</div>
+                            <button className="modal-close" onClick={onClose}>×</button>
+                        </div>
+                        <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }}>
+                            <div className="modal-body" style={{ maxHeight: '700px', overflowY: 'auto' }}>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">
+                                            <Tooltip text="Categoría de la solicitud de ausencia, por ejemplo: vacación, permiso administrativo o licencia médica.">Tipo *</Tooltip>
+                                        </label>
+                                        <select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})} className="form-select">
+                                            {requestTypes.map(rt => <option key={rt.id} value={rt.id}>{rt.icon} {rt.label}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">
+                                            <Tooltip text="Trabajador para quien se registra la solicitud de ausencia.">Empleado *</Tooltip>
+                                        </label>
+                                        <select value={formData.staffId} onChange={(e) => handleDateChange('staffId', e.target.value)} className="form-select">
+                                            <option value="">Seleccionar...</option>
+                                            {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">
+                                            <Tooltip text="Fecha en que comienza la ausencia del trabajador.">Inicio *</Tooltip>
+                                        </label>
+                                        <input type="date" value={formData.startDate} onChange={(e) => handleDateChange('startDate', e.target.value)} className="form-input" />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">
+                                            <Tooltip text="Fecha en que termina la ausencia del trabajador.">Fin *</Tooltip>
+                                        </label>
+                                        <input type="date" value={formData.endDate} onChange={(e) => handleDateChange('endDate', e.target.value)} className="form-input" />
+                                    </div>
+                                </div>
+                                {conflicts.length > 0 && <div className="alert alert-warning">⚠️ Conflictos: {conflicts.join(', ')}</div>}
+
+                                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', marginTop: '16px' }}>
+                                    <label className="form-label" style={{ display: 'block', marginBottom: '12px' }}>
+                                        <Tooltip text="Trabajador que cubrirá las funciones durante la ausencia. Puede buscarlo por nombre o filtrar por equipo y cargo.">Suplente</Tooltip>
+                                    </label>
+
+                                    <div className="form-group">
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar por nombre..."
+                                            value={replacementSearch}
+                                            onChange={(e) => setReplacementSearch(e.target.value)}
+                                            className="form-input"
+                                            style={{ marginBottom: '12px' }}
+                                        />
+                                    </div>
+
+                                    <div className="form-row" style={{ marginBottom: '12px' }}>
+                                        <div className="form-group">
+                                            <label className="form-label" style={{ fontSize: '12px', marginBottom: '6px' }}>
+                                                <Tooltip text="Muestra solo los posibles suplentes que pertenecen al equipo seleccionado.">Filtrar por Equipo</Tooltip>
+                                            </label>
+                                            <select
+                                                value={selectedTeamFilter}
+                                                onChange={(e) => setSelectedTeamFilter(e.target.value)}
+                                                className="form-select"
+                                            >
+                                                <option value="">Todos</option>
+                                                {allTeams.map(team => <option key={team} value={team}>{team}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label" style={{ fontSize: '12px', marginBottom: '6px' }}>
+                                                <Tooltip text="Muestra solo los posibles suplentes que tienen el cargo seleccionado.">Filtrar por Cargo</Tooltip>
+                                            </label>
+                                            <select
+                                                value={selectedCargoFilter}
+                                                onChange={(e) => setSelectedCargoFilter(e.target.value)}
+                                                className="form-select"
+                                            >
+                                                <option value="">Todos</option>
+                                                {allCargos.map(cargo => <option key={cargo} value={cargo}>{cargo}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Resultados */}
+                                    <div style={{ 
+                                        border: '1px solid #cbd5e1', 
+                                        borderRadius: '6px', 
+                                        maxHeight: '250px', 
+                                        overflowY: 'auto',
+                                        background: '#f8fafc'
+                                    }}>
+                                        {filteredStaff.length === 0 ? (
+                                            <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                                                No hay coincidencias
+                                            </div>
+                                        ) : (
+                                            <div style={{ padding: '0' }}>
+                                                {filteredStaff.map((s, idx) => (
+                                                    <div
+                                                        key={s.id}
+                                                        onClick={() => {
+                                                            setFormData({...formData, replacement: s.id});
+                                                            setReplacementSearch('');
+                                                            setSelectedTeamFilter('');
+                                                            setSelectedCargoFilter('');
+                                                        }}
+                                                        style={{
+                                                            padding: '12px 16px',
+                                                            borderBottom: idx < filteredStaff.length - 1 ? '1px solid #e2e8f0' : 'none',
+                                                            cursor: 'pointer',
+                                                            background: formData.replacement === s.id ? '#dbeafe' : 'white',
+                                                            transition: 'background 0.2s'
+                                                        }}
+                                                        onMouseEnter={(e) => { if (formData.replacement !== s.id) e.target.style.background = '#f1f5f9'; }}
+                                                        onMouseLeave={(e) => { if (formData.replacement !== s.id) e.target.style.background = 'white'; }}
+                                                    >
+                                                        <div style={{ fontWeight: '600', fontSize: '13px', color: '#1a202c' }}>
+                                                            {formData.replacement === s.id && '✓ '}{s.name}
+                                                        </div>
+                                                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                                                            {s.cargo} • {s.teams.join(', ')}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {formData.replacement && (
+                                        <div style={{ marginTop: '12px', padding: '12px', background: '#f0fdf4', borderRadius: '6px', fontSize: '13px', color: '#15803d' }}>
+                                            ✅ {staff.find(s => s.id === formData.replacement)?.name} seleccionado
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+                                <button type="submit" className="btn btn-primary">Registrar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        function RequestTypeModal({ onClose, onSubmit }) {
+            const [formData, setFormData] = useState({ label: '', icon: '📌' });
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <div className="modal-title">➕ Nuevo Tipo de Solicitud</div>
+                            <button className="modal-close" onClick={onClose}>×</button>
+                        </div>
+                        <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }}>
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        <Tooltip text="Nombre de la categoría de solicitud, por ejemplo: Permiso Sindical, Capacitación.">Nombre *</Tooltip>
+                                    </label>
+                                    <input type="text" value={formData.label} onChange={(e) => setFormData({...formData, label: e.target.value})} className="form-input" />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        <Tooltip text="Símbolo visual que representará esta categoría en la aplicación. Ingrese un solo emoji.">Emoji</Tooltip>
+                                    </label>
+                                    <input type="text" value={formData.icon} onChange={(e) => setFormData({...formData, icon: e.target.value})} className="form-input" maxLength="2" />
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+                                <button type="submit" className="btn btn-primary">Crear</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============ RENDER ============
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ShiftFlowApp />);
+    </script>
+</body>
+</html>
