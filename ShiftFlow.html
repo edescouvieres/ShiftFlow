@@ -909,6 +909,8 @@ var e,t,r="function"==typeof Symbol?Symbol:{},a=r.iterator||"@@iterator",n=r.toS
             const [showTeamModal, setShowTeamModal] = useState(false);
             const [editingTeam, setEditingTeam] = useState(null);
             const [showRequestTypeModal, setShowRequestTypeModal] = useState(false);
+            const [showStaffModal, setShowStaffModal] = useState(false);
+            const [editingStaff, setEditingStaff] = useState(null);
 
             const handleAddVacation = (data) => {
                 setVacations([...vacations, { ...data, id: Date.now() }]);
@@ -950,6 +952,20 @@ var e,t,r="function"==typeof Symbol?Symbol:{},a=r.iterator||"@@iterator",n=r.toS
             const handleAddRequestType = (data) => {
                 setRequestTypes([...requestTypes, { ...data, id: data.label.toLowerCase().replace(/\s/g, '-') }]);
                 setShowRequestTypeModal(false);
+            };
+
+            const handleSaveStaff = (data) => {
+                if (editingStaff) {
+                    setStaff(staff.map(s => s.id === editingStaff.id ? { ...s, ...data } : s));
+                } else {
+                    setStaff([...staff, { ...data, id: Math.max(...staff.map(s => s.id), 0) + 1 }]);
+                }
+                setEditingStaff(null);
+                setShowStaffModal(false);
+            };
+
+            const handleDeleteStaff = (id) => {
+                setStaff(staff.filter(s => s.id !== id));
             };
 
             const handleExport = () => {
@@ -1173,7 +1189,15 @@ var e,t,r="function"==typeof Symbol?Symbol:{},a=r.iterator||"@@iterator",n=r.toS
                                     getConflicts={getConflicts}
                                 />
                             )}
-                            {activeNav === 'staff' && <StaffView staff={staff} teams={teams} />}
+                            {activeNav === 'staff' && (
+                                <StaffView
+                                    staff={staff}
+                                    teams={teams}
+                                    onAdd={() => { setEditingStaff(null); setShowStaffModal(true); }}
+                                    onEdit={(s) => { setEditingStaff(s); setShowStaffModal(true); }}
+                                    onDelete={handleDeleteStaff}
+                                />
+                            )}
                         </main>
                     </div>
 
@@ -1209,6 +1233,15 @@ var e,t,r="function"==typeof Symbol?Symbol:{},a=r.iterator||"@@iterator",n=r.toS
                         <RequestTypeModal
                             onClose={() => setShowRequestTypeModal(false)}
                             onSubmit={handleAddRequestType}
+                        />
+                    )}
+
+                    {showStaffModal && (
+                        <StaffModal
+                            person={editingStaff}
+                            teams={teams}
+                            onClose={() => { setShowStaffModal(false); setEditingStaff(null); }}
+                            onSubmit={handleSaveStaff}
                         />
                     )}
                 </div>
@@ -1342,40 +1375,159 @@ var e,t,r="function"==typeof Symbol?Symbol:{},a=r.iterator||"@@iterator",n=r.toS
         }
 
         // ============ STAFF VIEW ============
-        function StaffView({ staff, teams }) {
+        function StaffView({ staff, teams, onAdd, onEdit, onDelete }) {
             return (
                 <div>
-                    <div className="card-title">📋 Personal</div>
-                    <div style={{ overflowX: 'auto' }}>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>RUT</th>
-                                    <th>Nombre</th>
-                                    <th>Cargo</th>
-                                    <th>Equipos</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {staff.map(s => (
-                                    <tr key={s.id}>
-                                        <td><strong>{s.rut}</strong></td>
-                                        <td>{s.name}</td>
-                                        <td><span className="tag">{s.cargo}</span></td>
-                                        <td>
-                                            {s.teams.map((teamId, i) => (
-                                                <span key={i}>
-                                                    <span className="tag" style={{ background: '#d1fae5', color: '#065f46' }}>
-                                                        {teams.find(t => t.id === teamId)?.name}
-                                                    </span>
-                                                    {i < s.teams.length - 1 && ' '}
-                                                </span>
-                                            ))}
-                                        </td>
+                    <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="card-title" style={{ margin: 0 }}>📋 Personal</div>
+                        <button className="btn btn-primary" onClick={onAdd}>+ Nuevo Empleado</button>
+                    </div>
+                    {staff.length === 0 ? (
+                        <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
+                            <div style={{ fontSize: '48px', marginBottom: '12px' }}>👤</div>
+                            <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>No hay empleados registrados</div>
+                        </div>
+                    ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>RUT</th>
+                                        <th>Nombre</th>
+                                        <th>Cargo</th>
+                                        <th>Equipos</th>
+                                        <th style={{ width: '100px' }}></th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {staff.map(s => (
+                                        <tr key={s.id}>
+                                            <td><strong>{s.rut}</strong></td>
+                                            <td>{s.name}</td>
+                                            <td><span className="tag">{s.cargo}</span></td>
+                                            <td>
+                                                {s.teams.map((teamId, i) => (
+                                                    <span key={i}>
+                                                        <span className="tag" style={{ background: '#d1fae5', color: '#065f46' }}>
+                                                            {teams.find(t => t.id === teamId)?.name}
+                                                        </span>
+                                                        {i < s.teams.length - 1 && ' '}
+                                                    </span>
+                                                ))}
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', gap: '6px' }}>
+                                                    <button className="btn btn-secondary" onClick={() => onEdit(s)}>✏️</button>
+                                                    <button className="btn btn-danger" onClick={() => onDelete(s.id)}>🗑️</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function StaffModal({ person, teams, onClose, onSubmit }) {
+            const [formData, setFormData] = useState(
+                person || { rut: '', name: '', cargo: '', teams: [] }
+            );
+
+            const toggleTeam = (teamId) => {
+                const current = formData.teams;
+                setFormData({
+                    ...formData,
+                    teams: current.includes(teamId)
+                        ? current.filter(id => id !== teamId)
+                        : [...current, teamId]
+                });
+            };
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <div className="modal-title">{person ? '✏️ Editar Empleado' : '➕ Nuevo Empleado'}</div>
+                            <button className="modal-close" onClick={onClose}>×</button>
+                        </div>
+                        <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }}>
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        <Tooltip text="Número de identificación tributaria del trabajador, con puntos y guion (ej: 12.345.678-9).">RUT *</Tooltip>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.rut}
+                                        onChange={(e) => setFormData({ ...formData, rut: e.target.value })}
+                                        className="form-input"
+                                        placeholder="12.345.678-9"
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        <Tooltip text="Nombre completo del trabajador tal como aparece en su documentación.">Nombre completo *</Tooltip>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        className="form-input"
+                                        placeholder="Nombre Apellido"
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        <Tooltip text="Puesto o función que desempeña el trabajador dentro de la organización.">Cargo *</Tooltip>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.cargo}
+                                        onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
+                                        className="form-input"
+                                        placeholder="Operador, Supervisor…"
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        <Tooltip text="Equipos a los que pertenece este trabajador. Puede pertenecer a más de uno.">Equipos</Tooltip>
+                                    </label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px', marginTop: '8px' }}>
+                                        {teams.map(t => (
+                                            <button
+                                                key={t.id}
+                                                type="button"
+                                                onClick={() => toggleTeam(t.id)}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    border: '1px solid',
+                                                    borderColor: formData.teams.includes(t.id) ? 'var(--accent)' : 'var(--border)',
+                                                    borderRadius: '6px',
+                                                    background: formData.teams.includes(t.id) ? 'var(--accent)' : 'var(--bg-tertiary)',
+                                                    color: formData.teams.includes(t.id) ? 'white' : 'var(--text-primary)',
+                                                    cursor: 'pointer',
+                                                    fontSize: '13px',
+                                                    fontWeight: '600',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                {formData.teams.includes(t.id) ? '✓ ' : ''}{t.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+                                <button type="submit" className="btn btn-primary">Guardar</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             );
