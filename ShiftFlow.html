@@ -918,6 +918,9 @@ var e,t,r="function"==typeof Symbol?Symbol:{},a=r.iterator||"@@iterator",n=r.toS
             };
 
             const handleDeleteVacation = (id) => {
+                const vac = vacations.find(v => v.id === id);
+                const person = staff.find(s => s.id === vac?.staffId);
+                if (!window.confirm(`¿Eliminar la solicitud de ${person?.name ?? 'este empleado'}?`)) return;
                 setVacations(vacations.filter(v => v.id !== id));
             };
 
@@ -932,6 +935,8 @@ var e,t,r="function"==typeof Symbol?Symbol:{},a=r.iterator||"@@iterator",n=r.toS
             };
 
             const handleDeleteShift = (id) => {
+                const shift = shifts.find(s => s.id === id);
+                if (!window.confirm(`¿Eliminar el turno "${shift?.name}"?`)) return;
                 setShifts(shifts.filter(s => s.id !== id));
             };
 
@@ -946,6 +951,8 @@ var e,t,r="function"==typeof Symbol?Symbol:{},a=r.iterator||"@@iterator",n=r.toS
             };
 
             const handleDeleteTeam = (id) => {
+                const team = teams.find(t => t.id === id);
+                if (!window.confirm(`¿Eliminar el equipo "${team?.name}"?`)) return;
                 setTeams(teams.filter(t => t.id !== id));
             };
 
@@ -965,6 +972,8 @@ var e,t,r="function"==typeof Symbol?Symbol:{},a=r.iterator||"@@iterator",n=r.toS
             };
 
             const handleDeleteStaff = (id) => {
+                const person = staff.find(s => s.id === id);
+                if (!window.confirm(`¿Eliminar a ${person?.name} de la nómina?`)) return;
                 setStaff(staff.filter(s => s.id !== id));
             };
 
